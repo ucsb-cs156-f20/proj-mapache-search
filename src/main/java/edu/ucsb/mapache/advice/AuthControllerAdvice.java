@@ -8,6 +8,7 @@ import edu.ucsb.mapache.entities.Admin;
 import edu.ucsb.mapache.entities.AppUser;
 import edu.ucsb.mapache.repositories.AdminRepository;
 import edu.ucsb.mapache.repositories.AppUserRepository;
+import edu.ucsb.mapache.repositories.SlackUserRepository;
 import edu.ucsb.mapache.services.MembershipService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,9 @@ public class AuthControllerAdvice {
 
   @Autowired
   private AdminRepository adminRepository;
+
+  @Autowired
+  private SlackUserRepository slackUserRepository;
 
   public DecodedJWT getJWT(String authorization) {
     return JWT.decode(authorization.substring(7));
@@ -60,6 +64,10 @@ public class AuthControllerAdvice {
     return service.isMember(jwt) || service.isAdmin(jwt);
   }
 
+  public boolean getIsSlackAdmin(String email) {
+    return slackUserRepository.findAdminByEmail(email).size() != 0;
+  }
+
   public AppUser updateAppUsers(String authorization) {
     DecodedJWT jwt = getJWT(authorization);
     Map<String, Object> customClaims = jwt.getClaim(namespace).asMap();
@@ -73,6 +81,9 @@ public class AuthControllerAdvice {
       user.setLastName((String) customClaims.get("family_name"));
       if (getIsAdmin(authorization)) {
         Admin admin = new Admin(email, true);
+        adminRepository.save(admin);
+      }else if (getIsSlackAdmin(email)) {
+        Admin admin = new Admin(email, false);
         adminRepository.save(admin);
       }
       return appUserRepository.save(user);

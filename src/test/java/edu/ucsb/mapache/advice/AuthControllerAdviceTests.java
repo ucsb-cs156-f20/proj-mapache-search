@@ -13,9 +13,14 @@ import java.util.List;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import edu.ucsb.mapache.entities.Admin;
 import edu.ucsb.mapache.entities.AppUser;
+import edu.ucsb.mapache.documents.SlackUser;
+import edu.ucsb.mapache.documents.SlackUserProfile;
 import edu.ucsb.mapache.repositories.AdminRepository;
 import edu.ucsb.mapache.repositories.AppUserRepository;
+import edu.ucsb.mapache.repositories.SlackUserRepository;
 import edu.ucsb.mapache.services.MembershipService;
+import jdk.jfr.Timestamp;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +41,8 @@ public class AuthControllerAdviceTests {
   AppUserRepository mockAppUserRepository;
   @Mock
   AdminRepository mockAdminRepository;
+  @Mock
+  SlackUserRepository mockSlackUserRepository;
 
   private String exampleAuthToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwczovL3Rlc3QtYXBwLmNvbSI6eyJlbWFpbCI6InRlc3RAdWNzYi5lZHUiLCJnaXZlbl9uYW1lIjoiVGVzdCIsImZhbWlseV9uYW1lIjoiVXNlciJ9LCJzdWIiOiIxMjM0NTYiLCJuYW1lIjoiSm9obiBEb2UiLCJpYXQiOjE1MTYyMzkwMjJ9.s0eGBAgVvby7Y7Q34qI1E7HqqFbrneIhvzpC_MI-B30";
 
@@ -72,6 +79,16 @@ public class AuthControllerAdviceTests {
     when(mockMembershipService.isAdmin(any(DecodedJWT.class))).thenReturn(true);
     assertEquals(exampleUser, authControllerAdvice.getUser(exampleAuthToken));
     verify(mockAdminRepository, times(1)).save(new Admin(exampleUser.getEmail(), true));
+  }
+
+  @Test
+  public void test_getUser_createNewUserAndSlackAdmin() {
+    when(mockAppUserRepository.save(any(AppUser.class))).thenReturn(exampleUser);
+    SlackUser exampleSlackAdmin = new SlackUser("fakeID", "Fake Name", "Fake Name", new SlackUserProfile(exampleUser.getEmail()));
+    when(mockSlackUserRepository.findAdminByEmail(exampleUser.getEmail()))
+      .thenReturn(new ArrayList<SlackUser>(Arrays.asList(exampleSlackAdmin)));
+    assertEquals(exampleUser, authControllerAdvice.getUser(exampleAuthToken));
+    verify(mockAdminRepository, times(1)).save(new Admin(exampleUser.getEmail(), false));
   }
 
   @Test
